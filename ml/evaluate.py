@@ -35,16 +35,11 @@ def evaluate_csv(model, df):
 
         y_true = result_df["loan_status"]
 
-        X = result_df.drop(
-            columns=["loan_status"]
-        )
+        X = result_df.drop(columns=["loan_status"])
 
         y_prob = model.predict_proba(X)[:, 1]
 
-        roc_auc = roc_auc_score(
-            y_true,
-            y_prob
-        )
+        roc_auc = roc_auc_score(y_true, y_prob)
 
     else:
 
