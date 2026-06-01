@@ -56,10 +56,7 @@ for name, model in models.items():
 
     probabilities = model.predict_proba(X_test)[:, 1]
 
-    auc = roc_auc_score(
-        y_test,
-        probabilities
-    )
+    auc = roc_auc_score(y_test, probabilities)
 
     print(f"{name}: {auc:.4f}")
 
