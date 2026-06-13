@@ -1,11 +1,9 @@
-from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates  # можно использовать Jinja2, но оставим Mako
 from pathlib import Path
 import pandas as pd
 import joblib
-import json
 import io
 from typing import List, Optional
 from templating import render_template  # ваш модуль для Mako
@@ -43,21 +41,15 @@ def startup_event():
 # ============================================
 FEATURES = [
     {"name": "person_age", "label": "Возраст", "type": "number", "placeholder": "30"},
-    {"name": "person_gender", "label": "Пол", "type": "select", "options": ["male", "female"]},
-    {"name": "person_education", "label": "Образование", "type": "select",
-     "options": ["Bachelor", "Master", "PhD", "High School"]},
-    {"name": "person_income", "label": "Доход", "type": "number", "placeholder": "50000"},
-    {"name": "person_emp_exp", "label": "Опыт работы (лет)", "type": "number", "placeholder": "5"},
-    {"name": "person_home_ownership", "label": "Владение жильём", "type": "select",
-     "options": ["RENT", "OWN", "MORTGAGE", "OTHER"]},
+    {"name": "person_income", "label": "Годовой доход (после налогов)", "type": "number", "placeholder": "50000"},
+    {"name": "person_emp_exp", "label": "Официальный стаж (лет)", "type": "number", "placeholder": "5"},
     {"name": "loan_amnt", "label": "Сумма кредита", "type": "number", "placeholder": "200000"},
-    {"name": "loan_intent", "label": "Цель кредита", "type": "select",
-     "options": ["EDUCATION", "MEDICAL", "VENTURE", "HOMEIMPROVEMENT", "DEBTCONSOLIDATION"]},
     {"name": "loan_int_rate", "label": "Процентная ставка", "type": "number", "step": "0.1", "placeholder": "10.5"},
-    {"name": "loan_percent_income", "label": "% дохода на кредит", "type": "number", "step": "0.01", "placeholder": "0.3"},
     {"name": "cb_person_cred_hist_length", "label": "Кредитная история (лет)", "type": "number", "placeholder": "5"},
     {"name": "credit_score", "label": "Кредитный рейтинг", "type": "number", "placeholder": "700"},
-    {"name": "previous_loan_defaults_on_file", "label": "Были просрочки", "type": "select", "options": ["Yes", "No"]}
+    {"name": "previous_loan_defaults_on_file", "label": "Были ли просрочки по кредитам?", "type": "select", "options": ["Yes", "No"]},
+    {"name": "person_gender_male", "label": "Пол мужской", "type": "select", "options": ["1", "0"]},
+    {"name": "person_education", "label": "Образование", "type": "select", "options": ["Bachelor", "Doctorate", "High School", "Master"]}
 ]
 
 # ============================================
@@ -69,22 +61,20 @@ def predict_dataframe(df: pd.DataFrame):
     return model.predict(df)
 
 def render_main_page(request: Request,
-                     prediction_result: Optional[dict] = None,
-                     model_status_msg: str = None,
-                     csv_result_html: str = None,
-                     form_data: dict = None):
-    """Единая функция рендеринга главной страницы с данными"""
+                     prediction_result=None,
+                     model_status_msg=None,
+                     csv_result_html=None,
+                     form_data=None):
     if model_status_msg is None:
         model_status_msg = "✅ Модель загружена" if model is not None else "❌ Модель не загружена"
     if form_data is None:
         form_data = {}
     return render_template(
-        "index.mako",
+        "index.html",
         features=FEATURES,
         model_status=model_status_msg,
         prediction_result=prediction_result,
         csv_result=csv_result_html,
-        request=request,
         form_data=form_data
     )
 
@@ -113,16 +103,38 @@ async def upload_model_ui(request: Request, file: UploadFile = File(...)):
 @app.post("/predict-ui", response_class=HTMLResponse)
 async def predict_ui(request: Request):
     if model is None:
-        return render_main_page(request, model_status_msg="❌ Модель не загружена. Сначала загрузите модель.")
-    form_data = await request.form()
-    # Преобразуем данные в DataFrame
-    data_dict = {}
+        return render_main_page(request, model_status_msg="❌ Модель не загружена")
+
+    form_data_raw = await request.form()
+    form_data = dict(form_data_raw)
+
+    # 1. Собираем сырые данные
+    row = {}
     for f in FEATURES:
         val = form_data.get(f["name"], "")
         if f["type"] == "number" and val != "":
-            val = float(val)
-        data_dict[f["name"]] = val
-    df = pd.DataFrame([data_dict])
+            row[f["name"]] = float(val)
+        else:
+            row[f["name"]] = val
+
+    # 2. Рассчитываем loan_percent_income
+    row["loan_percent_income"] = row["loan_amnt"] / row["person_income"]
+
+    # 3. One-hot encoding для образования
+    education = row.pop("person_education")
+    row["person_education_Bachelor"] = 1 if education == "Bachelor" else 0
+    row["person_education_Doctorate"] = 1 if education == "Doctorate" else 0
+    row["person_education_High School"] = 1 if education == "High School" else 0
+    row["person_education_Master"] = 1 if education == "Master" else 0
+
+    # 4. Пол (преобразуем в int)
+    row["person_gender_male"] = int(row["person_gender_male"])
+
+    # 5. Просрочки: Yes -> 1, No -> 0
+    row["previous_loan_defaults_on_file"] = 1 if row["previous_loan_defaults_on_file"] == "Yes" else 0
+
+    df = pd.DataFrame([row])
+
     try:
         prediction = int(model.predict(df)[0])
         probability = None
@@ -132,9 +144,9 @@ async def predict_ui(request: Request):
             "loan_status": prediction,
             "probability": probability
         }
-        return render_main_page(request, prediction_result=result, form_data=dict(form_data))
+        return render_main_page(request, prediction_result=result, form_data=form_data)
     except Exception as e:
-        return render_main_page(request, model_status_msg=f"❌ Ошибка предсказания: {e}")
+        return render_main_page(request, model_status_msg=f"❌ Ошибка предсказания: {e}", form_data=form_data)
 
 @app.post("/predict-csv-ui", response_class=HTMLResponse)
 async def predict_csv_ui(request: Request, file: UploadFile = File(...)):
