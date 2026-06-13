@@ -1,4 +1,5 @@
 # возвращаются ли ошибки
+
 from io import BytesIO
 
 from fastapi.testclient import TestClient
@@ -10,12 +11,11 @@ client = TestClient(app)
 
 def test_predict_from_csv_without_model():
     csv_content = (
-        "person_age,person_gender,person_education,person_income,"
-        "person_emp_exp,person_home_ownership,loan_amnt,loan_intent,"
-        "loan_int_rate,loan_percent_income,cb_person_cred_hist_length,"
-        "credit_score,previous_loan_defaults_on_file\n"
-        "35,male,Bachelor,75000,10,RENT,20000,HOMEIMPROVEMENT,"
-        "12.5,0.26,8,710,No\n"
+        "person_income,person_emp_exp,loan_amnt,loan_int_rate,"
+        "cb_person_cred_hist_length,credit_score,"
+        "previous_loan_defaults_on_file,person_gender_male,"
+        "person_education\n"
+        "75000,10,20000,12.5,8,710,No,True,Bachelor\n"
     )
 
     files = {
