@@ -277,14 +277,12 @@ async def predict_csv_ui(request: Request, file: UploadFile = File(...)):
 
             html += "</tr></thead><tbody>"
 
-            for _, row in df.head(20).iterrows():
+            for _, row in df.iterrows():
                 html += "<tr>"
                 for val in row:
                     html += f"<td>{val}</td>"
                 html += "</tr>"
 
-            if len(df) > 20:
-                html += f"<tr><td colspan='100'>... и ещё {len(df) - 20} строк</td></tr>"
 
             html += "</tbody></table></div>"
 
