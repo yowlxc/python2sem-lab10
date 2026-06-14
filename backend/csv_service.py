@@ -1,37 +1,41 @@
-# Чтение CSV, предсказания, расчёт ROC-AUC, формирование ответа
+# Чтение CSV, предсказания, расчёт ROC-AUC, формирование ответа.
 
 import pandas as pd
 from fastapi import HTTPException, UploadFile
 from sklearn.metrics import roc_auc_score
 
-from backend import model_service
-from backend.model_service import predict_dataframe
+from backend.model_service import predict_dataframe, predict_probabilities
+from backend.preprocess_service import prepare_dataframe
 
 
-def _get_probabilities(input_data):
+def _prepare_target(target_column):
+    """Приведение loan_status к 0/1."""
 
-    # создаем вспомогательную функцию
-    # получения вероятностей одобрения ипотеки
+    if target_column.dtype == "object":
+        return target_column.map({
+            "одобрено": 1,
+            "отказ": 0,
+            "approved": 1,
+            "rejected": 0,
+            "Approved": 1,
+            "Rejected": 0,
+            "Y": 1,
+            "N": 0,
+            "Yes": 1,
+            "No": 0,
+            "yes": 1,
+            "no": 0,
+            "1": 1,
+            "0": 0
+        })
 
-    if model_service.model is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Модель не загружена"
-        )
-
-    if hasattr(model_service.model, "predict_proba"): # проверяем, умеет ли модель возвращать вероятности
-        return model_service.model.predict_proba(
-            input_data
-        )[:, 1] # нам нужен 2-ой столбец
-
-    return None
+    return target_column
 
 
 async def process_csv(file: UploadFile):
+    """Обработка CSV-файла."""
 
-    # создаём асинхронную функцию обработки CSV-файла
-
-    if not file.filename.endswith(".csv"):
+    if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(
             status_code=400,
             detail="Файл должен быть CSV"
@@ -46,45 +50,46 @@ async def process_csv(file: UploadFile):
             detail=f"Ошибка чтения CSV: {error}"
         )
 
+    if df.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV-файл пустой"
+        )
+
     roc_auc = None
 
     if "loan_status" in df.columns:
-        y_true = df["loan_status"]
-        X = df.drop(columns=["loan_status"])
-
+        y_true = _prepare_target(df["loan_status"])
+        X_raw = df.drop(columns=["loan_status"])
     else:
-        X = df
+        y_true = None
+        X_raw = df
+
+    try:
+        X = prepare_dataframe(X_raw)
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ошибка предобработки CSV: {error}"
+        )
 
     predictions = predict_dataframe(X)
-
-    # добавление новых колонок
+    probabilities = predict_probabilities(X)
 
     df["predicted_loan_status"] = predictions
 
-    df["predicted_status_text"] = (
-        df["predicted_loan_status"]
-        .apply(
-            lambda value:
-            "одобрено"
-            if int(value) == 1
-            else "отказ"
-        )
+    df["predicted_status_text"] = df["predicted_loan_status"].apply(
+        lambda value: "одобрено" if int(value) == 1 else "отказ"
     )
 
-    probabilities = _get_probabilities(X)
-
-    if (
-            "loan_status" in df.columns
-            and probabilities is not None
-    ):
-        roc_auc = roc_auc_score(
-            y_true,
-            probabilities
-        )
+    if y_true is not None and probabilities is not None:
+        try:
+            roc_auc = roc_auc_score(y_true, probabilities)
+        except ValueError:
+            roc_auc = None
 
     return {
         "roc_auc": roc_auc,
-        "rows": df.to_dict(
-            orient="records"
-        )
+        "rows": df.to_dict(orient="records")
     }

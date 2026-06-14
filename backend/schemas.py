@@ -1,10 +1,9 @@
-# Здесь описывается структура данных.
+# Здесь описывается структура данных клиента.
 
 from pydantic import BaseModel
 
 
 class ClientData(BaseModel):
-
     # годовой доход клиента
     person_income: float
 
@@ -23,17 +22,12 @@ class ClientData(BaseModel):
     # кредитный рейтинг
     credit_score: int
 
-    # были ли просрочки
-    # Yes / No
+    # были ли просрочки: Yes / No
     previous_loan_defaults_on_file: str
 
-    # True = мужчина
-    # False = женщина
-    person_gender_male: bool
+    # пол: male / female
+    person_gender: str
 
-    # выбор из списка:
-    # Bachelor
-    # Master
-    # High School
-    # Doctorate
+    # образование:
+    # Bachelor / Master / High School / Doctorate
     person_education: str

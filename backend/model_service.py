@@ -1,5 +1,5 @@
-# Это работа с моделью.
-# Загрузка модели, хранение модели, предсказание.
+# Работа с моделью:
+# загрузка модели, хранение модели, предсказание.
 
 from pathlib import Path
 
@@ -7,41 +7,44 @@ import joblib
 import pandas as pd
 from fastapi import HTTPException, UploadFile
 
-MODEL_PATH = Path("models/mortgage_model.pkl") # создается путь, где будет храниться модель
+MODEL_PATH = Path("models/mortgage_model.pkl")
 MODEL_PATH.parent.mkdir(exist_ok=True)
 
 model = None
 
-# Загрузка модели из диска
+
 def load_model_from_disk():
+    """Загрузка модели с диска при запуске приложения."""
+
     global model
 
     if MODEL_PATH.exists():
         try:
-            model = joblib.load(MODEL_PATH) # загружаем модель из файла
+            model = joblib.load(MODEL_PATH)
         except Exception:
             model = None
 
     return model
 
 
-# загрузка модели через API
 async def upload_model_file(file: UploadFile):
+    """Загрузка модели через API."""
+
     global model
 
-    if not file.filename.endswith(".pkl"):
+    if not file.filename or not file.filename.endswith(".pkl"):
         raise HTTPException(
             status_code=400,
             detail="Файл должен быть .pkl"
         )
 
-    content = await file.read() # чтение файла в FastAPI выполняется асинхронно
+    content = await file.read()
 
     with open(MODEL_PATH, "wb") as f:
         f.write(content)
 
     try:
-        model = joblib.load(MODEL_PATH) # загружаем модель в память
+        model = joblib.load(MODEL_PATH)
 
     except Exception as error:
         raise HTTPException(
@@ -54,8 +57,9 @@ async def upload_model_file(file: UploadFile):
         "message": "Модель успешно загружена"
     }
 
-# Функция предсказания:
+
 def predict_dataframe(df: pd.DataFrame):
+    """Предсказание по DataFrame."""
 
     if model is None:
         raise HTTPException(
@@ -63,4 +67,33 @@ def predict_dataframe(df: pd.DataFrame):
             detail="Модель не загружена"
         )
 
-    return model.predict(df)
+    try:
+        return model.predict(df)
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ошибка предсказания: {error}"
+        )
+
+
+def predict_probabilities(df: pd.DataFrame):
+    """Получение вероятностей, если модель поддерживает predict_proba."""
+
+    if model is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Модель не загружена"
+        )
+
+    if not hasattr(model, "predict_proba"):
+        return None
+
+    try:
+        return model.predict_proba(df)[:, 1]
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ошибка расчёта вероятностей: {error}"
+        )
