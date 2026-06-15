@@ -40,7 +40,7 @@ def prepare_client_row(row: dict) -> dict:
         gender = row.pop("person_gender")
         defaults = row["previous_loan_defaults_on_file"]
 
-        home_ownership = row.pop("person_home_ownership", "MORTGAGE")
+        home_ownership = row.pop("person_home_ownership", "Ипотека")
         loan_intent = row.pop("loan_intent", "DEBTCONSOLIDATION")
 
         row["person_income"] = person_income

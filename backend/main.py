@@ -81,7 +81,30 @@ FEATURES = [
         "label": "Образование",
         "type": "select",
         "options": ["Среднее", "Бакалавр", "Магистр", "Доктор наук"]
-    }
+    },
+{
+    "name": "person_home_ownership",
+    "label": "Тип жилья",
+    "type": "select",
+    "options": [
+        "Собственное жильё",
+        "Аренда",
+        "Другое",
+        "Ипотека"
+    ]
+},
+{
+    "name": "loan_intent",
+    "label": "Цель кредита",
+    "type": "select",
+    "options": [
+        "Образование",
+        "Ремонт",
+        "Медицина",
+        "Личные нужды",
+        "Бизнес"
+    ]
+}
 ]
 
 
@@ -196,7 +219,9 @@ def predict_ui(
     credit_score: int = Form(...),
     previous_loan_defaults_on_file: str = Form(...),
     person_gender: str = Form(...),
-    person_education: str = Form(...)
+    person_education: str = Form(...),
+    person_home_ownership: str = Form(...),
+    loan_intent: str = Form(...)
 ):
     form_data = {
         "person_income": person_income,
@@ -207,7 +232,10 @@ def predict_ui(
         "credit_score": credit_score,
         "previous_loan_defaults_on_file": previous_loan_defaults_on_file,
         "person_gender": person_gender,
-        "person_education": person_education
+        "person_education": person_education,
+        "person_home_ownership": person_home_ownership,
+        "loan_intent": loan_intent
+
     }
 
     try:
