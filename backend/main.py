@@ -161,6 +161,8 @@ async def predict_from_csv(file: UploadFile = File(...)):
     return await process_csv(file)
 
 
+
+
 @app.post("/upload-model-ui", response_class=HTMLResponse)
 async def upload_model_ui(request: Request, file: UploadFile = File(...)):
     try:
