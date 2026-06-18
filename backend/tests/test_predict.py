@@ -1,13 +1,16 @@
-# работает ли API
+# работает ли API без загруженной модели
 
 from fastapi.testclient import TestClient
 
 from backend.main import app
+from backend import model_service
 
 client = TestClient(app)
 
 
 def test_predict_without_model():
+    model_service.model = None
+
     data = [
         {
             "person_income": 75000,
@@ -16,9 +19,9 @@ def test_predict_without_model():
             "loan_int_rate": 12.5,
             "cb_person_cred_hist_length": 8,
             "credit_score": 710,
-            "previous_loan_defaults_on_file": "No",
-            "person_gender_male": True,
-            "person_education": "Bachelor"
+            "previous_loan_defaults_on_file": "Нет",
+            "person_gender": "Женский",
+            "person_education": "Бакалавр"
         }
     ]
 
