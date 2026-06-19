@@ -1,24 +1,29 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List
 
 import pandas as pd
-from fastapi import FastAPI, File, UploadFile, Request, Form
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from backend.csv_service import process_csv
 from backend.model_service import (
     load_model_from_disk,
     predict_dataframe,
     predict_probabilities,
-    upload_model_file
+    upload_model_file,
 )
 from backend.preprocess_service import prepare_client_row
 from backend.schemas import ClientData
 
 
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = Path(__file__).resolve().parent.parent
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "frontend" / "static"
+
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 FEATURES = [
@@ -27,84 +32,84 @@ FEATURES = [
         "label": "Годовой доход",
         "type": "number",
         "placeholder": "50000",
-        "step": "0.01"
+        "step": "0.01",
     },
     {
         "name": "person_emp_exp",
         "label": "Стаж работы (лет)",
         "type": "number",
         "placeholder": "5",
-        "step": "1"
+        "step": "1",
     },
     {
         "name": "loan_amnt",
         "label": "Сумма кредита",
         "type": "number",
         "placeholder": "10000",
-        "step": "0.01"
+        "step": "0.01",
     },
     {
         "name": "loan_int_rate",
         "label": "Процентная ставка",
         "type": "number",
         "placeholder": "12.5",
-        "step": "0.01"
+        "step": "0.01",
     },
     {
         "name": "cb_person_cred_hist_length",
         "label": "Длина кредитной истории (лет)",
         "type": "number",
         "placeholder": "4",
-        "step": "0.1"
+        "step": "0.1",
     },
     {
         "name": "credit_score",
         "label": "Кредитный рейтинг",
         "type": "number",
         "placeholder": "650",
-        "step": "1"
+        "step": "1",
     },
     {
         "name": "previous_loan_defaults_on_file",
         "label": "Были ли просрочки",
         "type": "select",
-        "options": ["Нет", "Да"]
+        "options": ["Нет", "Да"],
     },
     {
         "name": "person_gender",
         "label": "Пол",
         "type": "select",
-        "options": ["Женский", "Мужской"]
+        "options": ["Женский", "Мужской"],
     },
     {
         "name": "person_education",
         "label": "Образование",
         "type": "select",
-        "options": ["Среднее", "Бакалавр", "Магистр", "Доктор наук"]
+        "options": ["Среднее", "Бакалавр", "Магистр", "Доктор наук"],
     },
-{
-    "name": "person_home_ownership",
-    "label": "Тип жилья",
-    "type": "select",
-    "options": [
-        "Собственное жильё",
-        "Аренда",
-        "Другое",
-        "Ипотека"
-    ]
-},
-{
-    "name": "loan_intent",
-    "label": "Цель кредита",
-    "type": "select",
-    "options": [
-        "Образование",
-        "Ремонт",
-        "Медицина",
-        "Личные нужды",
-        "Бизнес"
-    ]
-}
+    {
+        "name": "person_home_ownership",
+        "label": "Тип жилья",
+        "type": "select",
+        "options": [
+            "Собственное жильё",
+            "Аренда",
+            "Другое",
+            "Ипотека",
+        ],
+    },
+    {
+        "name": "loan_intent",
+        "label": "Цель кредита",
+        "type": "select",
+        "options": [
+            "Образование",
+            "Ремонт",
+            "Медицина",
+            "Личные нужды",
+            "Бизнес",
+        ],
+    },
 ]
 
 
@@ -116,14 +121,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Mortgage Approval Service",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
 app.mount(
     "/static",
-    StaticFiles(directory="frontend/static"),
-    name="static"
+    StaticFiles(directory=STATIC_DIR),
+    name="static",
 )
 
 
@@ -137,8 +142,8 @@ def index(request: Request):
             "form_data": {},
             "model_status": "Модель пока не загружалась через интерфейс",
             "prediction_result": None,
-            "csv_result": None
-        }
+            "csv_result": None,
+        },
     )
 
 
@@ -169,12 +174,16 @@ def predict(data: List[ClientData]):
         if probabilities is not None:
             probability = float(probabilities[index])
 
-        result.append({
-            **row,
-            "loan_status": int(prediction),
-            "status_text": "одобрено" if int(prediction) == 1 else "отказ",
-            "probability": probability
-        })
+        result.append(
+            {
+                **row,
+                "loan_status": int(prediction),
+                "status_text": "одобрено"
+                if int(prediction) == 1
+                else "отказ",
+                "probability": probability,
+            }
+        )
 
     return result
 
@@ -182,8 +191,6 @@ def predict(data: List[ClientData]):
 @app.post("/predict-from-csv")
 async def predict_from_csv(file: UploadFile = File(...)):
     return await process_csv(file)
-
-
 
 
 @app.post("/upload-model-ui", response_class=HTMLResponse)
@@ -203,8 +210,8 @@ async def upload_model_ui(request: Request, file: UploadFile = File(...)):
             "form_data": {},
             "model_status": model_status,
             "prediction_result": None,
-            "csv_result": None
-        }
+            "csv_result": None,
+        },
     )
 
 
@@ -221,7 +228,7 @@ def predict_ui(
     person_gender: str = Form(...),
     person_education: str = Form(...),
     person_home_ownership: str = Form(...),
-    loan_intent: str = Form(...)
+    loan_intent: str = Form(...),
 ):
     form_data = {
         "person_income": person_income,
@@ -234,8 +241,7 @@ def predict_ui(
         "person_gender": person_gender,
         "person_education": person_education,
         "person_home_ownership": person_home_ownership,
-        "loan_intent": loan_intent
-
+        "loan_intent": loan_intent,
     }
 
     try:
@@ -253,12 +259,12 @@ def predict_ui(
         prediction_result = {
             "loan_status": int(prediction),
             "status_text": "одобрено" if int(prediction) == 1 else "отказ",
-            "probability": probability
+            "probability": probability,
         }
 
     except Exception as error:
         prediction_result = {
-            "error": str(error)
+            "error": str(error),
         }
 
     return templates.TemplateResponse(
@@ -269,8 +275,8 @@ def predict_ui(
             "form_data": form_data,
             "model_status": "",
             "prediction_result": prediction_result,
-            "csv_result": None
-        }
+            "csv_result": None,
+        },
     )
 
 
@@ -319,6 +325,6 @@ async def predict_csv_ui(request: Request, file: UploadFile = File(...)):
             "form_data": {},
             "model_status": "",
             "prediction_result": None,
-            "csv_result": csv_result
-        }
+            "csv_result": csv_result,
+        },
     )
