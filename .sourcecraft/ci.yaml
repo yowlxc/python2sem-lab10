@@ -1,54 +1,39 @@
-on:
-  pull_request:
-    - workflows: [lint, test, build]
-      filter:
-        source_branches: ["*"]
-        target_branches: ["main", "master"]
+lint:
+  tasks:
+    - name: python-lint
 
-  push:
-    - workflows: [lint, test, build]
-      filter:
-        branches: ["main", "master", "develop"]
+      cubes:
+        - name: lint
+          image: python:3.12
 
-workflows:
+          script:
+            - pip install -r requirements.txt
+            - pip install ruff
+            - ruff check backend
+            - ruff check ml
 
-  lint:
-    tasks:
-      - name: python-lint
+test:
+  tasks:
+    - name: backend-tests
 
-        cubes:
-          - name: lint
-            image: python:3.12
+      cubes:
+        - name: pytest
+          image: python:3.12
 
-            script:
-              - pip install -r requirements.txt
-              - pip install ruff
-              - ruff check backend
-              - ruff check tests
-              - ruff check ml
+          script:
+            - pip install -r requirements.txt
+            - pip install pytest
+            - pytest backend/tests -v
 
-  test:
-    tasks:
-      - name: backend-tests
+build:
+  tasks:
+    - name: build-project
 
-        cubes:
-          - name: pytest
-            image: python:3.12
+      cubes:
+        - name: compile
+          image: python:3.12
 
-            script:
-              - pip install -r requirements.txt
-              - pip install pytest
-              - pytest tests -v
-
-  build:
-    tasks:
-      - name: build-project
-
-        cubes:
-          - name: compile
-            image: python:3.12
-
-            script:
-              - pip install -r requirements.txt
-              - python -m compileall backend
-              - python -m compileall ml
+          script:
+            - pip install -r requirements.txt
+            - python -m compileall backend
+            - python -m compileall ml
