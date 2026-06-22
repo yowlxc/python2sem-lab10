@@ -62,8 +62,9 @@ df = pd.get_dummies(
     drop_first=True
 )
 
-df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 1, 'No': 0})
-
+df["previous_loan_defaults_on_file"] = df[
+    "previous_loan_defaults_on_file"
+].map({"Yes": 1, "No": 0})
 """Возраст коррелирует со стажем работы слишком сильно - 0.95. Стаж работы более важен для того чтобы дать кредит, уберём возраст"""
 
 df.drop(
@@ -82,7 +83,7 @@ scaler = StandardScaler()
 
 numeric_features.remove("person_age")
 df[numeric_features] = scaler.fit_transform(
-  df[numeric_features]
+    df[numeric_features]
 )
 
 df.to_csv("new_loan_data.csv", index=False)

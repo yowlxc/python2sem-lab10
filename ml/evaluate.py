@@ -1,4 +1,4 @@
-from sklearn.metrics import roc_auc_score, accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 
 
 def evaluate_model(model, X_test, y_test):
@@ -14,8 +14,8 @@ def evaluate_model(model, X_test, y_test):
         "accuracy": accuracy_score(y_test, y_pred),
         "classification_report": classification_report(
             y_test,
-            y_pred
-        )
+            y_pred,
+        ),
     }
 
     return results
@@ -27,21 +27,14 @@ def evaluate_csv(model, df):
     """
 
     result_df = df.copy()
-
     roc_auc = None
 
     if "loan_status" in result_df.columns:
-
         y_true = result_df["loan_status"]
-
         X = result_df.drop(columns=["loan_status"])
-
         y_prob = model.predict_proba(X)[:, 1]
-
         roc_auc = roc_auc_score(y_true, y_prob)
-
     else:
-
         X = result_df
 
     predictions = model.predict(X)
@@ -50,5 +43,5 @@ def evaluate_csv(model, df):
 
     return {
         "roc_auc": roc_auc,
-        "data": result_df
+        "data": result_df,
     }
