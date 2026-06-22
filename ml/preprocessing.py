@@ -13,9 +13,6 @@ Original file is located at
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import jupyter
-import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
 data = pd.read_csv('train_data/loan_data.csv')
